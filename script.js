@@ -18,14 +18,14 @@ function rolarParaRapido() {
 
 //validação simples da reserva rápida
 (function iniciarValidacao(){
-    const formRapido = document.querySelector(".formRapido");
+    const form= document.querySelector(".formRapido");
 
-    if(!from) return;
+    if(!form) return;
 
-    const seletorRecurso = from.querySelector("select");
-    const campoData = from.querySelector('input[type="date"]');
-    const campoInicio = from.querySelector('input[placeholder="Início"]');
-    const campoFim = from.querySelector('input[placeholder="fim"]');
+    const seletorRecurso = form.querySelector("select");
+    const campoData = form.querySelector('input[type="date"]');
+    const campoInicio = form.querySelector('input[placeholder="Início"]');
+    const campoFim = form.querySelector('input[placeholder="fim"]');
 
     //remover a marcação de erro ao digitar
     [seletorRecurso, campoData, campoInicio, campoFim].forEach(el=>{
@@ -71,6 +71,15 @@ function rolarParaRapido() {
             alert("Horário final deve ser maior que o horário inicial");
             return;
         }
+
+        if(!valido) {
+            alert("Por favor, preencha os campos orbigartórios");
+            return;
+        }
+
+        //SUCESSO
+        alert("Reserva realizada com sucesso!");
+        form.reset();
     })
 
 })
