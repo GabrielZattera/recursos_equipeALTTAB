@@ -171,6 +171,13 @@ main{ padding-block: 28px; }
   border-color: transparent !important;
 }
 
+.formRapido,
+#modalLogin form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* ====== cards das entidades ====== */
 .gradeEntidades{
   display:grid; 

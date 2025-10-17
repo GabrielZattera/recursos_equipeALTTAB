@@ -1,6 +1,10 @@
 <!-- =========================
      index.html – Sprint 1
      ========================= -->
+
+     <!-- =========================
+     index.html – Sprint 2
+     ========================= -->
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -8,6 +12,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema de Reserva de Recursos</title>
   <link rel="stylesheet" href="style.css">
+  <script defer src="script.js"></script>
+
 </head>
 <body>
   <header>
@@ -17,8 +23,10 @@
         <h1>Sistema de Reserva de Recursos</h1>
       </div>
       <div class="acoesNav">
-        <button class="botao" onclick="abrirLogin()">Entrar</button>
-        <button class="botao botaoPrimario" onclick="rolarParaRapido()">Nova Reserva</button>
+        <!-- <button class="botao" onclick="abrirLogin()">Entrar</button>
+        <button class="botao botaoPrimario" onclick="rolarParaRapido()">Nova Reserva</button> -->
+        <a href="#secLogin" class="botao"></a>
+        <a href="secPesquisa"class="botao botaoPrimario">Nova Reserva</a>
       </div>
     </div>
   </header>
@@ -29,17 +37,17 @@
         <span class="selo">&#129513; Entidades: Usuário • Recurso • Reserva</span>
         <h2>Reserve recursos de forma simples e rápida</h2>
         <p class="textoMutado">Selecione o <strong>recurso</strong>, escolha <strong>data/horário</strong> e confirme. Depois, acompanhe suas <strong>reservas</strong> na área do usuário.</p>
-        <form class="formRapido">
-          <select>
+        <form class="formRapido" data-obsoleto="true">
+          <select name="recurso">
             <option value="">— Selecione o recurso —</option>
             <option>Laboratório 01</option>
             <option>Laboratório 02</option>
             <option>Projetor 4K</option>
             <option>Espaço de Reuniões</option>
           </select>
-          <input class="entrada" type="date" placeholder="Data">
-          <input class="entrada" type="time" placeholder="Início">
-          <input class="entrada" type="time" placeholder="Fim">
+          <input class="entrada" name="data" type="date" placeholder="Data">
+          <input class="entrada" name="inicio" type="time" placeholder="Início">
+          <input class="entrada" name="fim" placeholder="Fim">
           <button class="botao botaoPrimario" type="submit">Reservar</button>
         </form>
       </div>
@@ -69,6 +77,36 @@
       </article>
     </section>
 
+    <!-- ALTERAÇAO SPRINT 2 - seção de acesso (Login) com name = '' pra FormData 
+     Motivo: iniciar o fluxo e simular RN de perfil -->
+
+     <section id="secLogin" class="cartao" aria-labelledby="titLogin">
+      <h2 id="titLogin"></h2>
+      <form action="" id="formLogin" class="grade">
+        <label>
+          usuario
+          <input id="campoUsuario" name="usuario"autocomplete="username" required>
+        </label>
+        <label>
+          senha
+          <input id="campoSenha" name="senha" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="botao botaoPrimario" type="submit">Entrar</button>
+        <p class="textoMutado">Dica: qualquer usuario com senha 3+ caracteres entra (simulação)          
+        </p>
+      </form>
+     </section>
+
+     <!-- ALTERAÇÃO SPRINT 2: seção de pesquisa 
+      Motivo: separar a consulta de disponibilidade da solicitação -->
+
+      <section class="cartao" id="secPesquisa">
+        <h2 id="titPesquisa">Pesquisar disponibilidade</h2>
+        <form action="" id="formPesquisa">
+
+        </form>
+      </section>
+
     <footer>
       <div class="container">
         <small class="textoMutado">Sprint 1 · Prototipagem de Interface (HTML/CSS). Próximo: modelagem e persistência.</small>
@@ -93,6 +131,6 @@
     </div>
   </dialog>
 
-  <script src="script.js"></script>
+  <!-- <script src="script.js"></script> -->
 </body>
 </html>
