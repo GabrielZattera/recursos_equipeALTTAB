@@ -1,218 +1,307 @@
-/* script.js — rotas dinâmicas (objetos), login (admin/admin1234), pesquisa, solicitar, criar rota, histórico e toast */
+/* =========================
+   script.js – Sprint 2 (incremental)
+   Mantém o que havia no Sprint 1 e adiciona o fluxo funcional.
+   ========================= */
 
-(function(){
-  // estado
-  let usuarioAtual = null;
-  let ultimoFiltroPesquisa = null;
-  const reservas = [];
-  const rotas = []; // agora armazena objetos { rota, motorista, aluno, responsavel, data, hora, ... }
+/* ===========================================
+   0) TOAST ACESSÍVEL (feedback não bloqueante)
+   -------------------------------------------
+   Por quê? Substitui alert() por UX moderna e acessível.
+   Usa <div id="toast" role="status" aria-live="polite"> no HTML.
+   =========================================== */
+// ALTERAÇÃO SPRINT 2: utilitário de toast
+const $toast = document.getElementById('toast');
+//$ para indicar que variavel vem do DOM
+let __toastTimer = null;
+//__para indicar que é uma variável interna
+function mostrarToast(mensagem, tipo = 'ok') {
+  // fallback se #toast não existir (ambiente antigo)
+  if (!$toast) { 
+    alert(mensagem); 
+    return; 
+  }
 
-  // helpers
-  function dadosDoForm(form){ return Object.fromEntries(new FormData(form).entries()); }
+  $toast.classList.remove('warn', 'err', 'visivel');
+  if (tipo === 'warn') $toast.classList.add('warn');
+  if (tipo === 'err')  $toast.classList.add('err');
+  $toast.textContent = mensagem;
 
-  // toast
-  let __toastTimer = null;
-  function mostrarToast(mensagem, tipo = 'ok') {
-    try {
-      const $toast = document.getElementById('toast');
-      if (!$toast) { alert(mensagem); return; }
+  // força reflow para reativar transição quando reaparecer
+  void $toast.offsetWidth;
+  $toast.classList.add('visivel');
 
-      // limpa classes anteriores
-      $toast.classList.remove('warn', 'err', 'visivel');
-      if (tipo === 'warn') $toast.classList.add('warn');
-      if (tipo === 'err')  $toast.classList.add('err');
+  clearTimeout(__toastTimer);
+  __toastTimer = setTimeout(() => $toast.classList.remove('visivel'), 2800);
+}
 
-      $toast.textContent = mensagem;
 
-      // força reflow para garantir animação
-      void $toast.offsetWidth;
+/* ===========================================
+   1) FUNÇÕES ORIGINAIS — Sprint 1 (mantidas)
+   =========================================== */
 
-      // mostra
-      $toast.classList.add('visivel');
+// abre o modal de login (Sprint 1)
+function abrirLogin() {
+  const modal = document.getElementById('modalLogin');
+  if (modal && typeof modal.showModal === 'function') {
+    modal.showModal();
+  } else {
+    // ALTERAÇÃO SPRINT 2: usar toast no lugar de alert, quando possível
+    mostrarToast('Modal não suportado neste navegador.', 'warn');
+  }
+}
 
-      // agenda esconder
-      if (__toastTimer) clearTimeout(__toastTimer);
-      __toastTimer = setTimeout(() => {
-        $toast.classList.remove('visivel');
-        __toastTimer = null;
-      }, 3500);
-    } catch (err) {
-      // fallback seguro
-      try { alert(mensagem); } catch (_) { /* ignorar */ }
-      console.error('Erro em mostrarToast:', err);
+// rola suavemente até o formulário rápido (Sprint 1)
+function rolarParaRapido() {
+  const formRapido = document.querySelector('.formRapido');
+  if (formRapido) {
+    formRapido.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+// validação simples da reserva rápida (Sprint 1)
+// Observação Sprint 2: deixamos este fluxo como demonstração/legado.
+// O fluxo "oficial" de reserva agora é Login → Pesquisa → Solicitar (abaixo).
+(function inicializarValidacao() {
+  const form = document.querySelector('.formRapido');
+  if (!form) return;
+
+  const seletorRecurso = form.querySelector('select');
+  const campoData = form.querySelector('input[type="date"]');
+  const campoInicio = form.querySelector('input[placeholder="Início"]');
+  const campoFim = form.querySelector('input[placeholder="Fim"]');
+
+  // remover marcação de erro ao digitar/mudar
+  [seletorRecurso, campoData, campoInicio, campoFim].forEach(el => {
+    if (!el) return;
+    el.addEventListener('input', () => el.style.borderColor = '');
+    el.addEventListener('change', () => el.style.borderColor = '');
+  });
+
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+
+    let valido = true;
+
+    // valida recurso selecionado
+    if (seletorRecurso && seletorRecurso.selectedIndex === 0) {
+      seletorRecurso.style.borderColor = 'red';
+      valido = false;
     }
-  }
 
-  // atualiza select de rotas (usa nome da rota)
-  function atualizarRotasDisponiveis(){
-    const sel = document.getElementById('campoRecurso');
-    if (!sel) return;
-    sel.innerHTML = '<option value="">Selecione uma rota (cadastre primeiro)</option>';
-    rotas.forEach(r => {
-      const opt = document.createElement('option');
-      opt.value = r.rota;
-      opt.textContent = r.rota;
-      sel.appendChild(opt);
-    });
-  }
+    // valida data
+    if (campoData && !campoData.value) {
+      campoData.style.borderColor = 'red';
+      valido = false;
+    }
 
-  // mostra detalhes num painel
-  function mostrarDetalhesRota(matches){
-    const painel = document.getElementById('detalhesRota');
-    if (!painel) return;
-    if (!matches || matches.length === 0) {
-      painel.classList.add('oculto');
-      painel.innerHTML = '';
+    // valida horários
+    const hInicio = campoInicio?.value || '';
+    const hFim = campoFim?.value || '';
+    if (!hInicio) { campoInicio.style.borderColor = 'red'; valido = false; }
+    if (!hFim) { campoFim.style.borderColor = 'red'; valido = false; }
+
+    if (hInicio && hFim && hFim <= hInicio) {
+      // ALTERAÇÃO SPRINT 2: substitui alert por toast
+      mostrarToast('O horário final precisa ser maior que o horário inicial.', 'warn');
+      campoInicio.style.borderColor = 'red';
+      campoFim.style.borderColor = 'red';
       return;
     }
-    // mostra primeiro resultado e informa se há mais
-    const r = matches[0];
-    const quando = (r.data && r.hora) ? `${r.data} às ${r.hora}` : 'Horário não especificado';
-    let html = `<h3 style="margin-top:0">${r.rota}</h3>
-                <p><strong>Motorista:</strong> ${r.motorista}<br>
-                <strong>Aluno:</strong> ${r.aluno}<br>
-                <strong>Responsável:</strong> ${r.responsavel}<br>
-                <strong>Data/Hora:</strong> ${quando}</p>`;
-    if (matches.length > 1) {
-      html += `<p class="textoMutado">(${matches.length} registros com esse nome — exibindo o mais recente)</p>`;
+
+    if (!valido) {
+      // ALTERAÇÃO SPRINT 2: substitui alert por toast
+      mostrarToast('Por favor, preencha todos os campos obrigatórios.', 'warn');
+      return;
     }
-    painel.innerHTML = html;
-    painel.classList.remove('oculto');
-  }
 
-  // histórico (mantém como estava)
-  function renderItemReserva(item, idx){
-    const li = document.createElement('li');
-    const quando = (item.data && item.hora) ? new Date(`${item.data}T${item.hora}`).toLocaleString('pt-BR') : '';
-    const titulo = item.rota || item.recurso || '—';
-    const tipo = item.tipo || 'registro';
-    const status = item.status || 'pendente';
-    const statusLabel = status === 'aprovada' ? '✅ Aprovada' : status === 'registrada' ? '📌 Registrada' : status === 'pendente' ? '⏳ Pendente' : status === 'cancelada' ? '❌ Cancelada' : status;
-    li.innerHTML = `<span><strong>${titulo}</strong> ${quando ? '— ' + quando : ''}<br><small class="textoMutado">${tipo}${item.motorista ? ' • Motorista: '+item.motorista : ''}${item.aluno ? ' • Aluno: '+item.aluno : ''}</small></span><span data-idx="${idx}">${statusLabel}</span>`;
-    li.style.cursor = 'pointer';
-    li.addEventListener('click', () => {
-      if (!usuarioAtual) { mostrarToast('Faça login para modificar histórico.', 'warn'); return; }
-      if (!usuarioAtual.admin){ mostrarToast('Apenas admin pode cancelar neste demo.', 'warn'); return; }
-      if (item.status === 'cancelada'){ mostrarToast('Já cancelado.'); return; }
-      item.status = 'cancelada';
-      atualizarHistorico();
-      mostrarToast('Cancelado com sucesso.', 'warn');
-    });
-    return li;
-  }
-  function atualizarHistorico(){
-    const listaReservas = document.getElementById('listaReservas');
-    if (!listaReservas) return;
-    listaReservas.innerHTML = '';
-    reservas.slice().reverse().forEach((r, i) => {
-      const idx = reservas.length - 1 - i;
-      listaReservas.appendChild(renderItemReserva(r, idx));
-    });
-  }
-
-  // navegação simples
-  function irPara(hash){ location.hash = hash; }
-
-  // init after DOM loaded
-  document.addEventListener('DOMContentLoaded', () => {
-    const formLogin = document.getElementById('formLogin');
-    const formPesquisa = document.getElementById('formPesquisa');
-    const formSolicitar = document.getElementById('formSolicitar');
-    const formRota = document.getElementById('formRota');
-
-    // inicializa select (vazio)
-    atualizarRotasDisponiveis();
-    mostrarDetalhesRota([]); // esconde painel
-
-    // login
-    formLogin?.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const { usuario, senha } = dadosDoForm(formLogin);
-      if (!usuario || (senha||'').length < 3){ mostrarToast('Usuário/senha inválidos (mín. 3 caracteres).','warn'); return; }
-      if (usuario === 'admin' && senha === 'admin1234'){
-        usuarioAtual = { login:'admin', professor:true, admin:true };
-        mostrarToast('Logado como admin (demo).');
-      } else {
-        usuarioAtual = { login: usuario, professor: /prof/i.test(usuario), admin: false };
-        mostrarToast(`Bem-vindo, ${usuarioAtual.login}!`);
-      }
-      irPara('#secPesquisa');
-    });
-
-    // pesquisa: agora mostra detalhes da rota selecionada
-    formPesquisa?.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      if (!usuarioAtual){ mostrarToast('Faça login antes de pesquisar.','warn'); irPara('#secLogin'); return; }
-      const { recurso } = dadosDoForm(formPesquisa);
-      if (!recurso){ mostrarToast('Selecione uma rota para pesquisar.','warn'); return; }
-
-      // encontra rotas cadastradas com esse nome (mais recentes primeiro)
-      const matches = rotas.filter(r => r.rota === recurso).sort((a,b) => (b.criadoEm || '') > (a.criadoEm || '') ? 1 : -1);
-      if (matches.length === 0){
-        mostrarToast('Nenhuma rota cadastrada com esse nome.', 'warn');
-        mostrarDetalhesRota([]);
-        return;
-      }
-
-      // exibe toast com resumo rápido e detalhes no painel
-      const first = matches[0];
-      const resumo = `${first.rota} • Motorista: ${first.motorista} • Aluno: ${first.aluno} • ${first.data || ''} ${first.hora || ''}`;
-      mostrarToast(resumo);
-      mostrarDetalhesRota(matches);
-
-      // guarda seleção para solicitar vaga
-      ultimoFiltroPesquisa = { recurso: first.rota, rotaId: first.criadoEm };
-      irPara('#secSolicitar');
-    });
-
-    // solicitar vaga (mantém comportamento)
-    formSolicitar?.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      if (!usuarioAtual){ mostrarToast('Faça login antes de solicitar.','warn'); irPara('#secLogin'); return; }
-      if (!ultimoFiltroPesquisa){ mostrarToast('Pesquise a rota antes de solicitar vaga.','warn'); irPara('#secPesquisa'); return; }
-      const { justificativa } = dadosDoForm(formSolicitar);
-      if (!justificativa){ mostrarToast('Descreva a justificativa.','warn'); return; }
-      const status = (usuarioAtual.professor || usuarioAtual.admin) ? 'aprovada' : 'pendente';
-      const nova = { ...ultimoFiltroPesquisa, justificativa, status, autor: usuarioAtual.login, tipo:'vaga' };
-      reservas.push(nova);
-      atualizarHistorico();
-      mostrarToast(status === 'aprovada' ? 'Vaga aprovada automaticamente.' : 'Solicitação enviada.');
-      formSolicitar.reset();
-      irPara('#secHistorico');
-    });
-
-    // criar rota -> adiciona ao array rotas (objeto) e atualiza select
-    formRota?.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const { motorista, aluno, rota, responsavel, data, hora } = dadosDoForm(formRota);
-      if (!motorista || !aluno || !rota || !responsavel || !data || !hora){
-        mostrarToast('Preencha todos os campos da rota (incluindo data e hora).','warn');
-        return;
-      }
-      const rotaObj = {
-        motorista,
-        aluno,
-        rota,
-        responsavel,
-        data,
-        hora,
-        criadoEm: new Date().toISOString(), // id de criação
-        tipo:'rota',
-        status:'registrada'
-      };
-      // registra rota no histórico e na lista de rotas
-      reservas.push(rotaObj);
-      if (!rotas.some(r => r.rota === rota && r.data === data && r.hora === hora)) rotas.push(rotaObj);
-      atualizarRotasDisponiveis();
-      atualizarHistorico();
-      mostrarToast(`Rota "${rota}" criada para ${data} às ${hora}. Agora disponível na pesquisa.`);
-      formRota.reset();
-      irPara('#secHistorico');
-    });
-
-    // inicializa histórico
-    atualizarHistorico();
+    // sucesso (simulado)
+    mostrarToast('Reserva simulada com sucesso! (fluxo rápido/legado)');
+    form.reset();
   });
 })();
 
 
+/* ===========================================
+   2) AJUDANTES E ESTADO (Sprint 2)
+   -------------------------------------------
+   Por quê? Preparar "estado mínimo" e leitura por FormData.
+   =========================================== */
+
+// ALTERAÇÃO SPRINT 2: helper para transformar FormData em objeto simples
+function dadosDoForm(form) {
+  return Object.fromEntries(new FormData(form).entries());
+}
+
+// ALTERAÇÃO SPRINT 2: estado mínimo de aplicação (simulado)
+let usuarioAtual = null;              // { login, professor: boolean }
+let ultimoFiltroPesquisa = null;      // { recurso, data, hora }
+const reservas = [];                  // histórico em memória (simulado)
+
+
+/* ===========================================
+   3) MENU ATIVO POR HASH (acessibilidade)
+   -------------------------------------------
+   Por quê? Destacar seção atual sem roteador.
+   Requer CSS: .menu a[aria-current="true"] { ... }
+   =========================================== */
+// ALTERAÇÃO SPRINT 2: destacar link ativo do menu
+const menuLinks = document.querySelectorAll('.menu a, header .acoesNav a');
+function atualizarMenuAtivo() {
+  const hash = location.hash || '#secLogin';
+  menuLinks.forEach(a => {
+    const ativo = a.getAttribute('href') === hash;
+    a.setAttribute('aria-current', ativo ? 'true' : 'false');
+  });
+}
+window.addEventListener('hashchange', atualizarMenuAtivo);
+document.addEventListener('DOMContentLoaded', atualizarMenuAtivo);
+
+
+/* ===========================================
+   4) FLUXO LOGIN → PESQUISA → SOLICITAR → HISTÓRICO
+   -------------------------------------------
+   Por quê? Implementar o fluxo didático da Sprint 2,
+   com RN simulada: usuários cujo login contém "prof"
+   recebem aprovação automática na solicitação.
+   =========================================== */
+
+// Seletores das seções (se existirem no HTML atual)
+const formLogin     = document.getElementById('formLogin');
+const formPesquisa  = document.getElementById('formPesquisa');
+const formSolicitar = document.getElementById('formSolicitar');
+const listaReservas = document.getElementById('listaReservas');
+
+// (a) LOGIN
+// ALTERAÇÃO SPRINT 2: valida credenciais simples e define perfil simulado
+//? significa encadeamento opcional, isto é, faz as vezes do if
+formLogin?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const { usuario, senha } = dadosDoForm(formLogin);
+
+  if (!usuario || (senha || '').length < 3) {
+    mostrarToast('Usuário/senha inválidos (mín. 3 caracteres).', 'warn');
+    return;
+  }
+
+  const professor = /prof/i.test(usuario); // RN4 (simulada) — "parece professor"
+  usuarioAtual = { login: usuario, professor };
+
+  // MOSTRAR APENAS TOAST DE LOGIN (não recarregar a página)
+  mostrarToast(`Bem-vindo, ${usuarioAtual.login}!`);
+
+  // fechar modal de login se existir (UX)
+  const modal = document.getElementById('modalLogin');
+  if (modal && typeof modal.close === 'function') modal.close();
+
+  // atualizar menu/estado sem forçar reload
+  // usa replaceState para atualizar a hash na URL sem navegação de recarregamento
+  history.replaceState(null, '', '#secPesquisa');
+  atualizarMenuAtivo();
+});
+
+// (b) PESQUISAR DISPONIBILIDADE
+// ALTERAÇÃO SPRINT 2: guarda filtro pesquisado (simulação de disponibilidade)
+formPesquisa?.addEventListener('submit', (e) => {
+  e.preventDefault();
+
+  if (!usuarioAtual) {
+    mostrarToast('Faça login antes de pesquisar.', 'warn');
+    location.hash = '#secLogin';
+    atualizarMenuAtivo();
+    return;
+  }
+
+  const { recurso, data, hora } = dadosDoForm(formPesquisa);
+  if (!recurso || !data || !hora) {
+    mostrarToast('Preencha recurso, data e horário.', 'warn');
+    return;
+  }
+
+  ultimoFiltroPesquisa = { recurso, data, hora };
+  const quando = new Date(`${data}T${hora}`).toLocaleString('pt-BR');
+  mostrarToast(`Disponível: ${recurso} em ${quando}.`);
+  location.hash = '#secSolicitar';
+  atualizarMenuAtivo();
+});
+
+// (c) SOLICITAR RESERVA
+// ALTERAÇÃO SPRINT 2: aplica RN simulada e registra no histórico
+formSolicitar?.addEventListener('submit', (e) => {
+  e.preventDefault();
+
+  if (!usuarioAtual) {
+    mostrarToast('Faça login antes de solicitar.', 'warn');
+    location.hash = '#secLogin';
+    atualizarMenuAtivo();
+    return;
+  }
+  if (!ultimoFiltroPesquisa) {
+    mostrarToast('Pesquise a disponibilidade antes de solicitar.', 'warn');
+    location.hash = '#secPesquisa';
+    atualizarMenuAtivo();
+    return;
+  }
+
+  const { justificativa } = dadosDoForm(formSolicitar);
+  if (!justificativa) {
+    mostrarToast('Descreva a justificativa.', 'warn');
+    return;
+  }
+
+  // RN4 (simulada): se login contém "prof", aprova automaticamente
+  const status = usuarioAtual.professor ? 'aprovada' : 'pendente';
+
+  const nova = {
+    ...ultimoFiltroPesquisa,
+    justificativa,
+    status,
+    autor: usuarioAtual.login
+  };
+
+  reservas.push(nova);
+  renderItemReserva(nova);
+
+  mostrarToast(status === 'aprovada'
+    ? 'Reserva aprovada automaticamente.'
+    : 'Reserva enviada para análise.');
+
+  formSolicitar.reset();
+  location.hash = '#secHistorico';
+  atualizarMenuAtivo();
+});
+
+// (d) RENDERIZAÇÃO DO HISTÓRICO
+// ALTERAÇÃO SPRINT 2: lista simples (sem <template>, para não quebrar seu HTML)
+function renderItemReserva({ recurso, data, hora, justificativa, status }) {
+  if (!listaReservas) return;
+
+  const li = document.createElement('li');
+  const quando = new Date(`${data}T${hora}`).toLocaleString('pt-BR');
+
+  li.innerHTML = `
+    <span><strong>${recurso}</strong> — ${quando}</span>
+    <span>${status === 'aprovada' ? '✅ Aprovada' : status === 'cancelada' ? '❌ Cancelada' : '⏳ Pendente'}</span>
+  `;
+
+  // Opcional didático: clique para cancelar (simulação)
+  li.addEventListener('click', () => {
+    // impede recancelar
+    if (li.dataset.status === 'cancelada') return;
+    li.dataset.status = 'cancelada';
+    li.lastElementChild.textContent = '❌ Cancelada';
+    mostrarToast('Reserva cancelada.', 'warn');
+  });
+
+  listaReservas.appendChild(li);
+}
+
+
+/* ===========================================
+   5) AJUSTES FINAIS DE ARRANQUE
+   -------------------------------------------
+   Por quê? Garantir que link ativo apareça já na carga inicial.
+   =========================================== */
+document.addEventListener('DOMContentLoaded', () => {
+  // Se a pessoa abriu direto numa âncora, destacar no menu
+  atualizarMenuAtivo();
+});
