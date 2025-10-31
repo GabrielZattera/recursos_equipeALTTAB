@@ -201,10 +201,23 @@ const listaReservas = document.getElementById('listaReservas');
   function renderizarReservasPersistida(r, recursoMap = null){
     if (!listaReservas) return;
     const recursos = recursoMap || Object.fromEntries(repo.get(DB_KEYS.recursos).map(rr => [rr.id, rr.nome]));
-    const quando = '${r.data.split('-').reverse().join('/')}-${r.horaInicio}-${r.horaFim}';
-    
-  }
+    const quando = `${r.data.split('-').reverse().join('/')}-${r.horaInicio}-${r.horaFim}`;
+    const li = document.createElement('li');
+    const simbulo = r.status === 'aprovada'? '\u{2705}': r.status === 'cancelada'? '\u{274C}' : '\u{23f3}';}
 
+    li.innerHTML = `
+    <span><strog>${recursos[r.recursoId] || r.recurso}<strong> - ${quando}</span>
+    <span>${simbolo} ${r.status.charAt(0).toUpperCase() = r.status.slice(1)}</span>
+    `
+
+    if(r.status === 'cancelada') li.setAttribute('arial-disabled', 'true');
+
+    li.addEventListener('click', ()=>{
+      if(r.status==='cancelada') return; 
+      r.status='cancelada';
+      repo.updateByid(DB_KYES.reservas, r.id, ()=>r);
+      li.lastElementChild.textContent = ''
+    })
 
 // (a) LOGIN
 // ALTERAÇÃO SPRINT 2: valida credenciais simples e define perfil simulado
