@@ -3,6 +3,11 @@
    Mantém o que havia no Sprint 1 e adiciona o fluxo funcional.
    ========================= */
 
+   /* =========================
+   script.js – Sprint 3 (incremental)
+   Mantém o que havia no Sprint 2 e adiciona persistência + símbolos unicode.
+   ========================= */
+
 /* ===========================================
    0) TOAST ACESSÍVEL (feedback não bloqueante)
    -------------------------------------------
@@ -170,6 +175,36 @@ const formLogin     = document.getElementById('formLogin');
 const formPesquisa  = document.getElementById('formPesquisa');
 const formSolicitar = document.getElementById('formSolicitar');
 const listaReservas = document.getElementById('listaReservas');
+
+/* ===========================================
+  SPRINT 3: REGRAS
+  =========================================== */
+
+  //ADICONAR UMA HORA AO HORÁRIO "HH:MM" PARA FIM PADRÃO
+  function adicionarHora(hhmm){
+    const [h,m] = (hhmm || '00:00').slip(':').map(Number);
+    const d = new Date();
+    d.setHours(h,m,0,0);
+    d.setMinutes(d.getMinutes() + 60);
+    return d.toTimeString().slice(0,5);
+
+  }
+
+  //DETECÇÃO DE CONFLITO (RN2)
+  //Não  há conflito apenas quando um termina antes do outro começar
+  function haConflito({recursoId, data, horaInicio, horaFim}){
+    const existentes = repo.get(DB_KEYS.reservas).filter(r => r.recursoId === recursoId && r.data === data && r.status !== 'cancelada');
+    return existentes.some(r =>! (r.horaFim <= horaInicio || r.horaInicio >= horaFim));
+  }
+
+  //RENDER A PARTIR DO BANCO DE DADOS (localstorage)
+  function renderizarReservasPersistida(r, recursoMap = null){
+    if (!listaReservas) return;
+    const recursos = recursoMap || Object.fromEntries(repo.get(DB_KEYS.recursos).map(rr => [rr.id, rr.nome]));
+    const quando = '${r.data.split('-').reverse().join('/')}-${r.horaInicio}-${r.horaFim}';
+    
+  }
+
 
 // (a) LOGIN
 // ALTERAÇÃO SPRINT 2: valida credenciais simples e define perfil simulado
